@@ -8,20 +8,28 @@ options = {}
 OptionParser.new do |opts|
   opts.banner = "Usage: dispatcher.rb [options]"
   opts.on('-r', '--route_key NAME', 'Route KEY') { |v| options[:route_key] = v }
+  opts.on('-e', '--exchange NAME', 'Exchange KEY') { |v| options[:exchange] = v }
   opts.on('-c', '--console_path NAME', 'SF console path') { |v| options[:console_path] = v }
 end.parse!
+
+raise OptionParser::MissingArgument if options[:route_key].nil?
+raise OptionParser::MissingArgument if options[:exchange].nil?
+raise OptionParser::MissingArgument if options[:console_path].nil?
 
 conn = Bunny.new
 conn.start
 
 ch = conn.create_channel
-q = ch.queue(options[:route_key], :durable => true)
+q = ch.queue(options[:route_key], durable: true)
+x = ch.exchange(options[:exchange], type: "x-delayed-message", arguments: { "x-delayed-type" => "direct" }, durable: true)
+q.bind(x, :routing_key => options[:route_key])
 
 ch.prefetch(1)
 puts " [*] Waiting for messages. To exit press CTRL+C"
 
 begin
   q.subscribe(:manual_ack => true, :block => true) do |delivery_info, properties, body|
+   puts body
     Thread.new {
         r = `#{options[:console_path]} queue:consume -b '#{body}'`
         r.split("\n").each do|c|

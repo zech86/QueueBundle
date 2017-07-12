@@ -25,6 +25,8 @@ class Configuration implements ConfigurationInterface
             ->scalarNode('port')->defaultValue(5672)->end()
             ->scalarNode('user')->defaultValue('guest')->end()
             ->scalarNode('password')->defaultValue('guest')->end()
+            ->scalarNode('default_routing_key')->defaultValue('queue_1')->end()
+            ->scalarNode('default_exchange')->defaultValue('exchange_1')->end()
         ->end();
 
 

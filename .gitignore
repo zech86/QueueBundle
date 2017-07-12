@@ -2,4 +2,5 @@
 phpunit.xml
 phpunit_bootstrap.php
 vendor/
+composer.lock
 !.gitkeep

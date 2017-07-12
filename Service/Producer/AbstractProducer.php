@@ -5,6 +5,7 @@ namespace Zechim\QueueBundle\Service\Producer;
 use PhpAmqpLib\Channel\AMQPChannel;
 use PhpAmqpLib\Connection\AMQPStreamConnection;
 use PhpAmqpLib\Message\AMQPMessage;
+use PhpAmqpLib\Wire\AMQPTable;
 
 abstract class AbstractProducer
 {
@@ -29,19 +30,44 @@ abstract class AbstractProducer
     }
 
     /**
-     * @param $routingKey
      * @return AMQPChannel
      */
-    protected function getChannel($routingKey)
+    private function getChannel()
     {
         if (null !== $this->channel) {
             return $this->channel;
         }
 
         $this->channel = $this->createConnection()->channel();
-        $this->channel->queue_declare($routingKey, false, true, false, false);
 
         return $this->channel;
+    }
+
+    /**
+     * @param $exchangeName
+     * @param $routingKey
+     * @return AMQPChannel
+     */
+    private function createExchange($exchangeName, $routingKey)
+    {
+        $channel = $this->getChannel();
+        $channel->exchange_declare(
+            $exchangeName,
+            'x-delayed-message',
+            false,  /* passive, create if exchange doesn't exist */
+            true,   /* durable, persist through server reboots */
+            false,  /* autodelete */
+            false,  /* internal */
+            false,  /* nowait */
+            [
+                'x-delayed-type' => ['S', 'direct']
+            ]
+        );
+
+        $channel->queue_declare($routingKey, false, true, false, false);
+        $channel->queue_bind($routingKey, $exchangeName, $routingKey);
+
+        return $channel;
     }
 
     /**
@@ -76,21 +102,29 @@ abstract class AbstractProducer
 
     /**
      * @param array $message
-     * @param $routingKey
+     * @param \DateInterval|null $interval
      */
-    protected function doPublish(array $message, $routingKey)
+    protected function doPublish(array $message, \DateInterval $interval = null)
     {
+        $interval = null === $interval ?: new \DateInterval('P0S');
+
         $message = new AMQPMessage(
             json_encode($message),
             [
                 'delivery_mode' => AMQPMessage::DELIVERY_MODE_PERSISTENT,
                 'content_type' => 'application/json',
+                'application_headers' => new AMQPTable([
+                    'x-delay' => $interval->format('%s')
+                ])
             ]
         );
 
-        $this->getChannel($routingKey)->basic_publish($message, '', $routingKey);
+        $exchangeKey = $this->parameters['exchange_key'];
+        $routingKey = $this->parameters['routing_key'];
+
+        $this->createExchange($routingKey, $exchangeKey)->basic_publish($message, $exchangeKey, $routingKey);
         $this->close();
     }
 
-    abstract function publish($routingKey, $name, array $options = []);
+    abstract function publish($name, array $options = [], \DateInterval $interval = null);
 }

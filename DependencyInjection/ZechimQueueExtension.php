@@ -27,10 +27,15 @@ class ZechimQueueExtension extends Extension
         $loader = new Loader\YamlFileLoader($container, new FileLocator(__DIR__.'/../Resources/config'));
         $loader->load('services.yml');
 
+        $config['exchange'] = $config['default_exchange'];
+        $config['routing_key'] = $config['default_routing_key'];
+
+        unset($config['default_exchange'], $config['default_routing_key']);
+
         /* Form Create */
         $definition = new Definition(CommandProducer::class);
         $definition->addArgument($config);
 
-        $container->setDefinition('zechim_queue.command_consumer', $definition);
+        $container->setDefinition('zechim_queue.default_command_consumer', $definition);
     }
 }
