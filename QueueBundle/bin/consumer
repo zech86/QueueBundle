@@ -1,0 +1,35 @@
+#!/usr/bin/env ruby
+# encoding: utf-8
+
+require "bunny"
+require "optparse"
+
+options = {}
+OptionParser.new do |opts|
+  opts.banner = "Usage: dispatcher.rb [options]"
+  opts.on('-r', '--route_key NAME', 'Route KEY') { |v| options[:route_key] = v }
+  opts.on('-c', '--console_path NAME', 'SF console path') { |v| options[:console_path] = v }
+end.parse!
+
+conn = Bunny.new
+conn.start
+
+ch = conn.create_channel
+q = ch.queue(options[:route_key], :durable => true)
+
+ch.prefetch(1)
+puts " [*] Waiting for messages. To exit press CTRL+C"
+
+begin
+  q.subscribe(:manual_ack => true, :block => true) do |delivery_info, properties, body|
+    Thread.new {
+        r = `#{options[:console_path]} queue:consume -b '#{body}'`
+        r.split("\n").each do|c|
+            puts(c)
+        end
+        ch.ack(delivery_info.delivery_tag)
+    }
+  end
+rescue Interrupt => _
+  conn.close
+end
