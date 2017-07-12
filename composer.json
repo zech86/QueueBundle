@@ -18,5 +18,5 @@
         }
     },
 
-    "bin": ["bin/consumer"]
+    "bin": ["QueueBundle/bin/consumer"]
 }
