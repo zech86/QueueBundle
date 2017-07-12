@@ -1,6 +1,4 @@
-.buildpath
-.project
-.settings/
+.idea/
 phpunit.xml
 phpunit_bootstrap.php
 vendor/
