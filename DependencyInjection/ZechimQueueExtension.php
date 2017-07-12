@@ -36,6 +36,6 @@ class ZechimQueueExtension extends Extension
         $definition = new Definition(CommandProducer::class);
         $definition->addArgument($config);
 
-        $container->setDefinition('zechim_queue.default_command_consumer', $definition);
+        $container->setDefinition('zechim_queue.default_command_producer', $definition);
     }
 }
