@@ -10,11 +10,13 @@ OptionParser.new do |opts|
   opts.on('-r', '--route_key NAME', 'Route KEY') { |v| options[:route_key] = v }
   opts.on('-e', '--exchange NAME', 'Exchange KEY') { |v| options[:exchange] = v }
   opts.on('-c', '--console_path NAME', 'SF console path') { |v| options[:console_path] = v }
+  opts.on('-ENV', '--ENV NAME', 'SF ENV') { |v| options[:env] = v }
 end.parse!
 
 raise OptionParser::MissingArgument if options[:route_key].nil?
 raise OptionParser::MissingArgument if options[:exchange].nil?
 raise OptionParser::MissingArgument if options[:console_path].nil?
+raise OptionParser::MissingArgument if options[:env].nil?
 
 conn = Bunny.new
 conn.start
@@ -31,7 +33,7 @@ begin
   q.subscribe(:manual_ack => true, :block => true) do |delivery_info, properties, body|
    puts body
     Thread.new {
-        r = `#{options[:console_path]} queue:consume -b '#{body}'`
+        r = `#{options[:console_path]} queue:consume -b '#{body}' --env '#{options[:env]}'`
         r.split("\n").each do|c|
             puts(c)
         end
