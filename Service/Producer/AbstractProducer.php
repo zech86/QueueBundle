@@ -106,7 +106,7 @@ abstract class AbstractProducer
      */
     protected function doPublish(array $message, \DateInterval $interval = null)
     {
-        $interval = null === $interval ?: new \DateInterval('P0S');
+        $interval = null === $interval ? new \DateInterval('PT0S') : $interval;
 
         $message = new AMQPMessage(
             json_encode($message),
@@ -114,7 +114,7 @@ abstract class AbstractProducer
                 'delivery_mode' => AMQPMessage::DELIVERY_MODE_PERSISTENT,
                 'content_type' => 'application/json',
                 'application_headers' => new AMQPTable([
-                    'x-delay' => $interval->format('%s')
+                    'x-delay' => $interval->format('%s') * 1000
                 ])
             ]
         );
