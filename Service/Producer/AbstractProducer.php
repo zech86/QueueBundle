@@ -119,10 +119,10 @@ abstract class AbstractProducer
             ]
         );
 
-        $exchangeKey = $this->parameters['exchange_key'];
+        $exchange = $this->parameters['exchange'];
         $routingKey = $this->parameters['routing_key'];
 
-        $this->createExchange($routingKey, $exchangeKey)->basic_publish($message, $exchangeKey, $routingKey);
+        $this->createExchange($exchange, $routingKey)->basic_publish($message, $exchange, $routingKey);
         $this->close();
     }
 
