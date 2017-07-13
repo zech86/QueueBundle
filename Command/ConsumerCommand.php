@@ -31,7 +31,7 @@ EOT
     protected function execute(InputInterface $input, OutputInterface $output)
     {
         try {
-            $body = json_decode($input->getOption('body'));
+            $body = json_decode($input->getOption('body'), true);
 
             if (JSON_ERROR_NONE !== json_last_error()) {
                 throw new \Exception();
@@ -39,8 +39,8 @@ EOT
 
         } catch (\Exception $e) {
             throw new \InvalidArgumentException(sprintf(
-                'body parameter expected a valid json. The following error
-                was found during json_decode: %s',
+                'body parameter expected a valid json. The following error' .
+                'was found during json_decode: %s',
                 json_last_error_msg()
             ));
 
