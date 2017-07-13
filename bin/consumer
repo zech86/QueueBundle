@@ -10,7 +10,7 @@ OptionParser.new do |opts|
   opts.on('-r', '--route_key NAME', 'Route KEY') { |v| options[:route_key] = v }
   opts.on('-e', '--exchange NAME', 'Exchange KEY') { |v| options[:exchange] = v }
   opts.on('-c', '--console_path NAME', 'SF console path') { |v| options[:console_path] = v }
-  opts.on('-ENV', '--ENV NAME', 'SF ENV') { |v| options[:env] = v }
+  opts.on('-v', '--env NAME', 'SF ENV') { |v| options[:env] = v }
 end.parse!
 
 raise OptionParser::MissingArgument if options[:route_key].nil?
