@@ -107,15 +107,15 @@ abstract class AbstractProducer
     protected function doPublish(array $message, \DateInterval $interval = null)
     {
         $interval = null === $interval ? new \DateInterval('PT0S') : $interval;
+        $interval = ((($interval->y * 365.25 + $interval->m * 30 + $interval->d) * 24 + $interval->h) * 60 + $interval->i)*60 + $interval->s;
+        $interval = (int) $interval * 1000;
 
         $message = new AMQPMessage(
             json_encode($message),
             [
                 'delivery_mode' => AMQPMessage::DELIVERY_MODE_PERSISTENT,
                 'content_type' => 'application/json',
-                'application_headers' => new AMQPTable([
-                    'x-delay' => $interval->format('%s') * 1000
-                ])
+                'application_headers' => new AMQPTable(['x-delay' => $interval])
             ]
         );
 
