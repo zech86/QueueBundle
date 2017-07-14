@@ -4,42 +4,106 @@
 require "bunny"
 require "optparse"
 
-options = {}
-OptionParser.new do |opts|
-  opts.banner = "Usage: dispatcher.rb [options]"
-  opts.on('-r', '--route_key NAME', 'Route KEY') { |v| options[:route_key] = v }
-  opts.on('-e', '--exchange NAME', 'Exchange KEY') { |v| options[:exchange] = v }
-  opts.on('-c', '--console_path NAME', 'SF console path') { |v| options[:console_path] = v }
-  opts.on('-v', '--env NAME', 'SF ENV') { |v| options[:env] = v }
-end.parse!
+def start
+    $options = {}
 
-raise OptionParser::MissingArgument if options[:route_key].nil?
-raise OptionParser::MissingArgument if options[:exchange].nil?
-raise OptionParser::MissingArgument if options[:console_path].nil?
-raise OptionParser::MissingArgument if options[:env].nil?
+    OptionParser.new do |opts|
+      opts.banner = "Usage: dispatcher.rb [options]"
+      opts.on('-r n', '--route_key', 'Route KEY') { |v| $options[:route_key] = v }
+      opts.on('-x n', '--exchange', 'Exchange KEY') { |v| $options[:exchange] = v }
+      opts.on('-c n', '--console_path', 'SF console path') { |v| $options[:console_path] = v }
+      opts.on('-e n', '--env', 'SF ENV') { |v| $options[:env] = v }
+      opts.on('-p n', '--pid', 'PID file') { |v| $options[:pid] = v }
+    end.parse!
 
-conn = Bunny.new
-conn.start
+    raise OptionParser::MissingArgument if $options[:route_key].nil?
+    raise OptionParser::MissingArgument if $options[:exchange].nil?
+    raise OptionParser::MissingArgument if $options[:console_path].nil?
+    raise OptionParser::MissingArgument if $options[:env].nil?
+    raise OptionParser::MissingArgument if $options[:pid].nil?
 
-ch = conn.create_channel
-q = ch.queue(options[:route_key], durable: true)
-x = ch.exchange(options[:exchange], type: "x-delayed-message", arguments: { "x-delayed-type" => "direct" }, durable: true)
-q.bind(x, :routing_key => options[:route_key])
+    $pid = nil
 
-ch.prefetch(1)
-puts " [*] Waiting for messages. To exit press CTRL+C"
+    if File.exist?($options[:pid]) then
+        log("Process already running. If it's not, please remove " + $options[:pid])
+        exit
+    end
 
-begin
-  q.subscribe(:manual_ack => true, :block => true) do |delivery_info, properties, body|
-   puts body
-    Thread.new {
-        r = `#{options[:console_path]} queue:consume -b '#{body}' --env '#{options[:env]}'`
-        r.split("\n").each do|c|
-            puts(c)
-        end
-        ch.ack(delivery_info.delivery_tag)
-    }
-  end
-rescue Interrupt => _
-  conn.close
+    begin
+        $pid = File.new($options[:pid], "w")
+
+        work
+
+    rescue Errno::EACCES
+        log("Cannot create PID file. Check the permissions and try again!")
+        $pid = nil
+        exit
+    end
 end
+
+def work
+    $pid.sync = true
+    $pid.puts(Process.pid.to_s)
+
+    handle_signals
+
+    conn = Bunny.new
+    conn.start
+
+    ch = conn.create_channel
+
+    q = ch.queue($options[:route_key], durable: true)
+    x = ch.exchange($options[:exchange], type: "x-delayed-message", arguments: {"x-delayed-type" => "direct"}, durable: true)
+    q.bind(x, :routing_key => $options[:route_key])
+
+    ch.prefetch(1)
+
+    log("Waiting for messages. To exit press CTRL+C")
+
+    begin
+      q.subscribe(:manual_ack => true, :block => true) do |delivery_info, properties, body|
+        log(body)
+        Thread.new {
+            r = `#{$options[:console_path]} queue:consume -b '#{body}' --env '#{$options[:env]}'`
+            log(r)
+            ch.ack(delivery_info.delivery_tag)
+        }
+      end
+    rescue Interrupt => _
+      conn.close
+    end
+end
+
+def handle_signals
+    # termination signal
+    Signal.trap("TERM") do
+        terminate
+    end
+
+    # kill signal
+    Signal.trap("SIGTERM") do
+        terminate
+    end
+
+    # keyboard interruption
+    Signal.trap("INT") do
+        terminate
+    end
+end
+
+def terminate
+    log("exiting")
+
+    if File.exist?($options[:pid]) then
+        $pid.close
+        File.delete($options[:pid])
+    end
+
+    exit
+end
+
+def log(str)
+    puts "[#{Time.now.strftime("%m/%d/%Y %H:%M:%S")}] #{str}"
+end
+
+start
