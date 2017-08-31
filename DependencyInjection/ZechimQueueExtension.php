@@ -32,7 +32,6 @@ class ZechimQueueExtension extends Extension
 
         unset($config['default_exchange'], $config['default_routing_key']);
 
-        /* Form Create */
         $definition = new Definition(CommandProducer::class);
         $definition->addArgument($config);
 
