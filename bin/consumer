@@ -8,6 +8,7 @@ def start
     $options = {}
     $options[:host] = '127.0.0.1'
     $options[:port] = '5672'
+    $options[:uri] = nil
 
     OptionParser.new do |opts|
       opts.banner = "Usage: consumer [options]"
@@ -18,6 +19,7 @@ def start
       opts.on('-p n', '--pid', 'PID file') { |v| $options[:pid] = v }
       opts.on('-h n', '--host', 'host') { |v| $options[:host] = v }
       opts.on('-P n', '--port', 'port') { |v| $options[:port] = v }
+      opts.on('-u n', '--uri', 'URI') { |v| $options[:uri] = v }
     end.parse!
 
     raise OptionParser::MissingArgument if $options[:route_key].nil?
@@ -25,14 +27,16 @@ def start
     raise OptionParser::MissingArgument if $options[:console_path].nil?
     raise OptionParser::MissingArgument if $options[:env].nil?
     raise OptionParser::MissingArgument if $options[:pid].nil?
-    raise OptionParser::MissingArgument if $options[:host].nil?
-    raise OptionParser::MissingArgument if $options[:port].nil?
 
     $pid = nil
 
     if File.exist?($options[:pid]) then
         log("Process already running. If it's not, please remove " + $options[:pid])
         exit
+    end
+
+    if $options[:uri].nil?
+        $options[:uri] = "amqp://#{$options[:host]}:#{$options[:port]}"
     end
 
     begin
@@ -54,7 +58,7 @@ def work
 
     handle_signals
 
-    $connection = Bunny.new(:host => $options[:host], :port => $options[:port])
+    $connection = Bunny.new($options[:uri])
     $connection.start
 
     $channel = $connection.create_channel
